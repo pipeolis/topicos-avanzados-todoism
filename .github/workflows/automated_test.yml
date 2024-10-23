@@ -1,4 +1,4 @@
-name: Run Automated Tests
+name: Run Tests
 
 on:
   push:
@@ -13,19 +13,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout todolist APP
+      - name: Checkout Flask app repo
         uses: actions/checkout@v3
 
-      - name: Setup python
+      - name: Set up Python
         uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: Install Deps
+      - name: Install Flask app dependencies
         run: |
           python -m venv venv
           source venv/bin/activate
           pip install -r requirements.txt
 
-      - name: Checkout test repo
+      - name: Run Flask app
+        run: |
+          source venv/bin/activate
+          flask initdb
+          flask translate compile
+          nohup flask run > flask.log 2>&1 &
+
+      - name: Checkout tests repo
         run: git clone https://github.com/pipeolis/topicos-avanzados-taller-cuatro.git
 
       - name: Setup Node
@@ -33,19 +42,23 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Install tests deps
+      - name: Install dependencies
         run: |
           cd topicos-avanzados-taller-cuatro
           npm ci
 
-      - name: Install Browsers
+      - name: Install Playwright Browsers
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
-        run: npx playwright test --config=topicos-avanzados-taller-cuatro/playwright.config.ts
-      - uses: actions/upload-artifact@v4
+        run: |
+          cd topicos-avanzados-taller-cuatro
+          npx playwright test todolist.spec.ts
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
-           name: playwright-report
-           path: topicos-avanzados-taller-cuatro/playwright-report/
-           retention-days: 1
+          name: playwright-report
+          path: topicos-avanzados-taller-cuatro/playwright-report/
+          retention-days: 30
